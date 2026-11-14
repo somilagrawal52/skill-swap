@@ -1,10 +1,13 @@
-const User = require("../models/User");
+const User = require("../Models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 exports.register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ msg: "Name, email, and password are required" });
+    }
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ msg: "User exists" });
 
@@ -22,6 +25,9 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ msg: "Email and password are required" });
+    }
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ msg: "Invalid credentials" });
 

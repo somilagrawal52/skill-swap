@@ -1,6 +1,13 @@
-import { useEffect, useState, useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { getMyRequests, respondSwapRequest, searchUsersBySkill } from "../services/api";
+import { useCallback, useEffect, useState, useContext } from "react";
+import { AuthContext } from "../context/auth-context";
+import {
+  getMyRequests,
+  getUserSkills,
+  respondSwapRequest,
+  searchUsersBySkill,
+  sendSwapRequest,
+} from "../services/api";
+import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 const Dashboard = () => {
@@ -13,6 +20,8 @@ const Dashboard = () => {
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [mySkills, setMySkills] = useState([]);
+  const [offeredSkill, setOfferedSkill] = useState("");
 
   const fetchRequests = async () => {
     try {
@@ -26,9 +35,20 @@ const Dashboard = () => {
     }
   };
 
+  const fetchMySkills = useCallback(async () => {
+    try {
+      const { data } = await getUserSkills(user._id);
+      setMySkills(data);
+      setOfferedSkill((current) => current || data[0]?.title || "");
+    } catch (error) {
+      console.error("Error fetching your skills:", error);
+    }
+  }, [user._id]);
+
   useEffect(() => {
     fetchRequests();
-  }, []);
+    fetchMySkills();
+  }, [fetchMySkills]);
 
   const handleRespond = async (requestId, status) => {
     try {
@@ -53,6 +73,20 @@ const Dashboard = () => {
     }
   };
 
+  const handleRequestSwap = async (toUser, requestedSkill) => {
+    if (!offeredSkill) {
+      alert("Add a skill first, then choose it as the skill you offer.");
+      return;
+    }
+
+    try {
+      await sendSwapRequest(toUser, offeredSkill, requestedSkill);
+      alert("Swap request sent!");
+    } catch (error) {
+      alert(error.response?.data?.msg || "Could not send the swap request");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex">
       {/* Sidebar (Desktop + Mobile toggle) */}
@@ -64,6 +98,12 @@ const Dashboard = () => {
         <div className="p-6">
           <h2 className="text-xl font-bold text-blue-600">Skill Swap</h2>
           <p className="mt-2 text-gray-600">Welcome, {user?.name}</p>
+          <Link
+            to="/skills"
+            className="mt-4 block text-center text-blue-600 hover:text-blue-700"
+          >
+            Manage skills
+          </Link>
           <button
             onClick={logout}
             className="mt-6 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition"
@@ -119,6 +159,26 @@ const Dashboard = () => {
         ) : searchResults.length > 0 ? (
           <div className="bg-white shadow rounded-lg p-6 mb-6">
             <h2 className="text-lg font-semibold mb-4">Search Results</h2>
+            {mySkills.length > 0 ? (
+              <label className="mb-4 block text-sm text-gray-700">
+                Offer one of your skills
+                <select
+                  value={offeredSkill}
+                  onChange={(e) => setOfferedSkill(e.target.value)}
+                  className="mt-1 block w-full rounded border border-gray-300 px-3 py-2"
+                >
+                  {mySkills.map((skill) => (
+                    <option key={skill._id} value={skill.title}>
+                      {skill.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p className="mb-4 text-sm text-amber-700">
+                Add a skill before sending a swap request.
+              </p>
+            )}
             <ul className="space-y-3">
               {searchResults.map((u) => (
                 <li
@@ -134,9 +194,18 @@ const Dashboard = () => {
                       </span>
                     </p>
                   </div>
-                  <button className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
-                    Request Swap
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    {u.skills.map((skill) => (
+                      <button
+                        key={skill}
+                        onClick={() => handleRequestSwap(u._id, skill)}
+                        disabled={!mySkills.length}
+                        className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:cursor-not-allowed disabled:bg-gray-400"
+                      >
+                        Request {skill}
+                      </button>
+                    ))}
+                  </div>
                 </li>
               ))}
             </ul>

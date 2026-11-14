@@ -1,5 +1,5 @@
 import { useState, useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/auth-context";
 
 const Register = () => {
   const { register } = useContext(AuthContext);
@@ -14,8 +14,6 @@ const Register = () => {
       alert("Please enter name, email, and password");
       return;
     }
-    console.log("Registering:", { name, email, password });
-
     await register(name, email, password);
   };
 

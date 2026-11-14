@@ -1,16 +1,24 @@
-const SwapRequest = require("../models/SwapRequest");
-const Skill = require("../models/Skill");
-const User = require("../models/User");
+const SwapRequest = require("../Models/swaprequest");
+const User = require("../Models/user");
 
 // Send a swap request
 exports.sendRequest = async (req, res) => {
   try {
     const { toUser, offeredSkill, requestedSkill } = req.body;
+    if (!toUser || !offeredSkill?.trim() || !requestedSkill?.trim()) {
+      return res.status(400).json({ msg: "Recipient and both skills are required" });
+    }
+    if (toUser === req.user.id) {
+      return res.status(400).json({ msg: "You cannot send a request to yourself" });
+    }
+    if (!(await User.exists({ _id: toUser }))) {
+      return res.status(404).json({ msg: "Recipient not found" });
+    }
     const swap = new SwapRequest({
       fromUser: req.user.id,
       toUser,
-      offeredSkill,
-      requestedSkill
+      offeredSkill: offeredSkill.trim(),
+      requestedSkill: requestedSkill.trim()
     });
     await swap.save();
     res.json(swap);
@@ -39,6 +47,12 @@ exports.respondRequest = async (req, res) => {
 
     const request = await SwapRequest.findById(requestId);
     if (!request) return res.status(404).json({ msg: "Request not found" });
+    if (request.toUser.toString() !== req.user.id) {
+      return res.status(403).json({ msg: "You cannot respond to this request" });
+    }
+    if (!["accepted", "declined"].includes(status)) {
+      return res.status(400).json({ msg: "Status must be accepted or declined" });
+    }
 
     request.status = status;
     await request.save();

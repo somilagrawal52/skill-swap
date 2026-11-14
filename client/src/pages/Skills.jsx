@@ -1,21 +1,13 @@
 import { useEffect, useState, useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/auth-context";
 import { createSkill, getAllSkills } from "../services/api";
-import { sendSwapRequest } from "../services/api";
+import { Link } from "react-router-dom";
 
 const Skills = () => {
   const { user } = useContext(AuthContext);
   const [skills, setSkills] = useState([]);
   const [title, setTitle] = useState("");
-  const [selectedUser, setSelectedUser] = useState("");
-const [requestedSkill, setRequestedSkill] = useState("");
   const [description, setDescription] = useState("");
-
-  const handleRequest = async (skill) => {
-  if (!requestedSkill) return;
-  await sendSwapRequest(skill.userId._id, "MySkillName", requestedSkill);
-  alert("Request sent!");
-};
 
   const fetchSkills = async () => {
     const { data } = await getAllSkills();
@@ -35,6 +27,7 @@ const [requestedSkill, setRequestedSkill] = useState("");
   return (
     <div>
       <h1>Welcome, {user.name}</h1>
+      <Link to="/">Back to dashboard</Link>
       <h2>Add a Skill</h2>
       <form onSubmit={handleSubmit}>
         <input placeholder="Skill title" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -48,12 +41,6 @@ const [requestedSkill, setRequestedSkill] = useState("");
   <li key={skill._id}>
     <strong>{skill.title}</strong> by {skill.userId.name} <br />
     {skill.description} <br />
-    {skill.userId._id !== user._id && (
-      <div>
-        <input placeholder="Your requested skill" value={requestedSkill} onChange={(e) => setRequestedSkill(e.target.value)} />
-        <button onClick={() => handleRequest(skill)}>Request Swap</button>
-      </div>
-    )}
   </li>
 ))}
       </ul>
