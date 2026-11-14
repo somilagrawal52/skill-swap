@@ -1,281 +1,656 @@
-import { useCallback, useEffect, useState, useContext } from "react";
-import { AuthContext } from "../context/auth-context";
-import {
-  getMyRequests,
-  getUserSkills,
-  respondSwapRequest,
-  searchUsersBySkill,
-  sendSwapRequest,
-} from "../services/api";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import {
+  getIncomingRequests,
+  getSentRequests,
+  respondSwapRequest,
+  cancelSwapRequest,
+  completeSwapRequest,
+} from "../services/api";
+import SessionNotesModal from "../components/SessionNotesModal";
+import ReviewModal from "../components/ReviewModal";
+import {
+  ArrowLeftRight,
+  Inbox,
+  Send,
+  CheckCircle,
+  Clock,
+  Check,
+  X,
+  Video,
+  Star,
+  FileText,
+  AlertCircle,
+  Sparkles,
+  ExternalLink,
+} from "lucide-react";
 
 const Dashboard = () => {
-  const { user, logout } = useContext(AuthContext);
-  const [requests, setRequests] = useState([]);
+  const { user, refreshUser } = useAuth();
+
+  const [activeTab, setActiveTab] = useState("active"); // active, incoming, sent, completed
+  const [incomingRequests, setIncomingRequests] = useState([]);
+  const [sentRequests, setSentRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
-  // Search state
-  const [search, setSearch] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [mySkills, setMySkills] = useState([]);
-  const [offeredSkill, setOfferedSkill] = useState("");
+  // Modals
+  const [selectedSwap, setSelectedSwap] = useState(null);
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
-  const fetchRequests = async () => {
+  const fetchAllRequests = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await getMyRequests();
-      setRequests(data);
-    } catch (error) {
-      console.error("Error fetching requests:", error);
+      const [incomingRes, sentRes] = await Promise.all([
+        getIncomingRequests(),
+        getSentRequests(),
+      ]);
+      setIncomingRequests(incomingRes.data || []);
+      setSentRequests(sentRes.data || []);
+    } catch (err) {
+      console.error("Error fetching requests:", err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchMySkills = useCallback(async () => {
-    try {
-      const { data } = await getUserSkills(user._id);
-      setMySkills(data);
-      setOfferedSkill((current) => current || data[0]?.title || "");
-    } catch (error) {
-      console.error("Error fetching your skills:", error);
-    }
-  }, [user._id]);
+  }, []);
 
   useEffect(() => {
-    fetchRequests();
-    fetchMySkills();
-  }, [fetchMySkills]);
+    fetchAllRequests();
+  }, [fetchAllRequests]);
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(""), 5000);
+  };
 
   const handleRespond = async (requestId, status) => {
     try {
+      setActionLoading(true);
       await respondSwapRequest(requestId, status);
-      fetchRequests();
-    } catch (error) {
-      console.error("Error updating request:", error);
-    }
-  };
-
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!search.trim()) return;
-    try {
-      setSearchLoading(true);
-      const { data } = await searchUsersBySkill(search);
-      setSearchResults(data);
+      showToast(status === "accepted" ? "Swap accepted! Let's arrange session details." : "Swap proposal declined.");
+      await fetchAllRequests();
+      refreshUser();
     } catch (err) {
-      console.error("Search error:", err);
+      alert(err.response?.data?.msg || "Action failed.");
     } finally {
-      setSearchLoading(false);
+      setActionLoading(false);
     }
   };
 
-  const handleRequestSwap = async (toUser, requestedSkill) => {
-    if (!offeredSkill) {
-      alert("Add a skill first, then choose it as the skill you offer.");
-      return;
-    }
-
+  const handleCancel = async (requestId) => {
+    if (!window.confirm("Are you sure you want to cancel this pending swap proposal?")) return;
     try {
-      await sendSwapRequest(toUser, offeredSkill, requestedSkill);
-      alert("Swap request sent!");
-    } catch (error) {
-      alert(error.response?.data?.msg || "Could not send the swap request");
+      setActionLoading(true);
+      await cancelSwapRequest(requestId);
+      showToast("Swap proposal cancelled.");
+      await fetchAllRequests();
+    } catch (err) {
+      alert(err.response?.data?.msg || "Could not cancel request.");
+    } finally {
+      setActionLoading(false);
     }
   };
+
+  const handleComplete = async (requestId) => {
+    if (!window.confirm("Confirm that you and your partner have completed this skill swap?")) return;
+    try {
+      setActionLoading(true);
+      await completeSwapRequest(requestId);
+      showToast("Swap marked as completed! 🎉 Don't forget to review your partner.");
+      await fetchAllRequests();
+      refreshUser();
+    } catch (err) {
+      alert(err.response?.data?.msg || "Could not complete swap.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Groupings
+  const allSwaps = [...incomingRequests, ...sentRequests];
+  const activeSwaps = allSwaps.filter((s) => s.status === "accepted");
+  const pendingIncoming = incomingRequests.filter((s) => s.status === "pending");
+  const pendingSent = sentRequests.filter((s) => s.status === "pending");
+  const completedSwaps = allSwaps.filter((s) => s.status === "completed");
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      {/* Sidebar (Desktop + Mobile toggle) */}
-      <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform transition-transform lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="p-6">
-          <h2 className="text-xl font-bold text-blue-600">Skill Swap</h2>
-          <p className="mt-2 text-gray-600">Welcome, {user?.name}</p>
-          <Link
-            to="/skills"
-            className="mt-4 block text-center text-blue-600 hover:text-blue-700"
-          >
-            Manage skills
-          </Link>
-          <button
-            onClick={logout}
-            className="mt-6 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {/* Overlay for mobile */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-40 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        ></div>
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 p-6 lg:ml-64">
-        {/* Top Bar */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">
-            {user?.name}'s Dashboard
-          </h1>
-          <button
-            className="lg:hidden p-2 text-gray-700"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
-
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="mb-6 flex">
-          <input
-            type="text"
-            placeholder="Search for skills..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-4 py-2 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition"
-          >
-            Search
-          </button>
-        </form>
-
-        {/* Search Results */}
-        {searchLoading ? (
-          <p className="text-gray-500">Searching...</p>
-        ) : searchResults.length > 0 ? (
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold mb-4">Search Results</h2>
-            {mySkills.length > 0 ? (
-              <label className="mb-4 block text-sm text-gray-700">
-                Offer one of your skills
-                <select
-                  value={offeredSkill}
-                  onChange={(e) => setOfferedSkill(e.target.value)}
-                  className="mt-1 block w-full rounded border border-gray-300 px-3 py-2"
-                >
-                  {mySkills.map((skill) => (
-                    <option key={skill._id} value={skill.title}>
-                      {skill.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <p className="mb-4 text-sm text-amber-700">
-                Add a skill before sending a swap request.
-              </p>
-            )}
-            <ul className="space-y-3">
-              {searchResults.map((u) => (
-                <li
-                  key={u._id}
-                  className="flex justify-between items-center border rounded-lg p-4"
-                >
-                  <div>
-                    <p className="font-medium text-gray-800">{u.name}</p>
-                    <p className="text-sm text-gray-600">
-                      Skills:{" "}
-                      <span className="text-blue-600 font-medium">
-                        {u.skills.join(", ")}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {u.skills.map((skill) => (
-                      <button
-                        key={skill}
-                        onClick={() => handleRequestSwap(u._id, skill)}
-                        disabled={!mySkills.length}
-                        className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:cursor-not-allowed disabled:bg-gray-400"
-                      >
-                        Request {skill}
-                      </button>
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
+    <div className="min-h-screen bg-slate-50 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Exchange Dashboard</h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Manage your active swaps, review incoming proposals, and coordinate sessions.
+            </p>
           </div>
-        ) : null}
+          <div className="flex items-center gap-3">
+            <Link
+              to="/skills"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-sm transition"
+            >
+              Manage My Skills
+            </Link>
+            <Link
+              to="/explore"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-100 transition"
+            >
+              + Find New Swap
+            </Link>
+          </div>
+        </div>
 
-        {/* Requests Section */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">My Swap Requests</h2>
+        {/* Toast Alert */}
+        {toastMessage && (
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2 text-xs text-emerald-800 animate-fade-in shadow-sm">
+            <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span className="font-semibold">{toastMessage}</span>
+          </div>
+        )}
 
-          {loading ? (
-            <p className="text-gray-500">Loading requests...</p>
-          ) : requests.length === 0 ? (
-            <p className="text-gray-500">No requests yet.</p>
-          ) : (
-            <ul className="space-y-4">
-              {requests.map((req) => (
-                <li
-                  key={req._id}
-                  className="border rounded-lg p-4 flex justify-between items-center"
-                >
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500 uppercase">Active Swaps</span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <ArrowLeftRight className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900">{activeSwaps.length}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Sessions in progress</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500 uppercase">Action Needed</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                <Inbox className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900">{pendingIncoming.length}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Incoming proposals</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500 uppercase">Sent Proposals</span>
+              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
+                <Send className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900">{pendingSent.length}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Awaiting partner response</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500 uppercase">Reputation</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                <Star className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900">
+              {user?.ratingAverage ? user.ratingAverage.toFixed(1) : "5.0"} ★
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {user?.completedSwapsCount || completedSwaps.length} completed swaps
+            </p>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+          <div className="flex items-center border-b border-slate-200 overflow-x-auto scrollbar-none px-6 pt-4">
+            <button
+              onClick={() => setActiveTab("active")}
+              className={`flex items-center gap-2 pb-4 px-3 text-xs font-bold whitespace-nowrap border-b-2 transition ${
+                activeTab === "active"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+              <span>Active Swaps ({activeSwaps.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("incoming")}
+              className={`flex items-center gap-2 pb-4 px-3 text-xs font-bold whitespace-nowrap border-b-2 transition ${
+                activeTab === "incoming"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Inbox className="w-4 h-4" />
+              <span>Incoming Proposals ({pendingIncoming.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("sent")}
+              className={`flex items-center gap-2 pb-4 px-3 text-xs font-bold whitespace-nowrap border-b-2 transition ${
+                activeTab === "sent"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Send className="w-4 h-4" />
+              <span>Sent Proposals ({pendingSent.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("completed")}
+              className={`flex items-center gap-2 pb-4 px-3 text-xs font-bold whitespace-nowrap border-b-2 transition ${
+                activeTab === "completed"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <CheckCircle className="w-4 h-4" />
+              <span>Completed History ({completedSwaps.length})</span>
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="p-6">
+            {loading ? (
+              <div className="py-16 text-center">
+                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                <p className="text-xs text-slate-500">Loading your swaps...</p>
+              </div>
+            ) : (
+              <>
+                {/* TAB 1: ACTIVE SWAPS */}
+                {activeTab === "active" && (
                   <div>
-                    <p>
-                      <strong>{req.fromUser?.name}</strong> wants to swap{" "}
-                      <span className="text-blue-600 font-medium">
-                        {req.requestedSkill}
-                      </span>{" "}
-                      for{" "}
-                      <span className="text-green-600 font-medium">
-                        {req.offeredSkill}
-                      </span>
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Status:{" "}
-                      <span
-                        className={`font-medium ${
-                          req.status === "pending"
-                            ? "text-yellow-500"
-                            : req.status === "accepted"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {req.status}
-                      </span>
-                    </p>
-                  </div>
+                    {activeSwaps.length === 0 ? (
+                      <div className="py-12 text-center">
+                        <ArrowLeftRight className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <h3 className="text-sm font-bold text-slate-800">No active swaps right now</h3>
+                        <p className="text-xs text-slate-500 mt-1 mb-4">
+                          Explore the marketplace and propose a swap to start learning!
+                        </p>
+                        <Link
+                          to="/explore"
+                          className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition"
+                        >
+                          Find a Swap Partner
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {activeSwaps.map((swap) => {
+                          const partner =
+                            swap.fromUser?._id === user?._id ? swap.toUser : swap.fromUser;
+                          const iAmSender = swap.fromUser?._id === user?._id;
+                          const iTeach = iAmSender ? swap.offeredSkill : swap.requestedSkill;
+                          const iLearn = iAmSender ? swap.requestedSkill : swap.offeredSkill;
 
-                  {req.status === "pending" && (
-                    <div className="space-x-2">
-                      <button
-                        onClick={() => handleRespond(req._id, "accepted")}
-                        className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => handleRespond(req._id, "declined")}
-                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                      >
-                        Decline
-                      </button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+                          return (
+                            <div
+                              key={swap._id}
+                              className="p-5 rounded-2xl bg-slate-50 border border-slate-200/90 hover:border-indigo-200 transition-all flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
+                            >
+                              <div className="flex items-start gap-4 flex-1">
+                                <img
+                                  src={
+                                    partner?.avatar ||
+                                    `https://api.dicebear.com/7.x/initials/svg?seed=${partner?.name || "User"}`
+                                  }
+                                  alt={partner?.name}
+                                  className="w-12 h-12 rounded-2xl object-cover border border-slate-200 flex-shrink-0"
+                                />
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="text-sm font-bold text-slate-900">{partner?.name}</h4>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                      Active Session
+                                    </span>
+                                  </div>
+
+                                  <div className="flex flex-wrap items-center gap-2 text-xs mb-2">
+                                    <span className="text-purple-700 font-semibold bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
+                                      You teach: {iTeach}
+                                    </span>
+                                    <ArrowLeftRight className="w-3.5 h-3.5 text-slate-400" />
+                                    <span className="text-indigo-700 font-semibold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                      You learn: {iLearn}
+                                    </span>
+                                  </div>
+
+                                  {swap.meetingLink ? (
+                                    <div className="flex items-center gap-2 text-xs text-emerald-700">
+                                      <Video className="w-3.5 h-3.5" />
+                                      <a
+                                        href={
+                                          swap.meetingLink.startsWith("http")
+                                            ? swap.meetingLink
+                                            : `https://${swap.meetingLink}`
+                                        }
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="font-bold underline flex items-center gap-1"
+                                      >
+                                        Join Meeting / Video Room <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    </div>
+                                  ) : (
+                                    <p className="text-[11px] text-slate-400 italic">
+                                      No meeting link added yet. Click "Session Details" to share one.
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+                                <button
+                                  onClick={() => {
+                                    setSelectedSwap(swap);
+                                    setNotesModalOpen(true);
+                                  }}
+                                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition flex items-center gap-1.5"
+                                >
+                                  <FileText className="w-3.5 h-3.5 text-slate-500" />
+                                  <span>Session Notes</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleComplete(swap._id)}
+                                  disabled={actionLoading}
+                                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition flex items-center gap-1.5"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Mark Completed</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 2: INCOMING PROPOSALS */}
+                {activeTab === "incoming" && (
+                  <div>
+                    {pendingIncoming.length === 0 ? (
+                      <div className="py-12 text-center">
+                        <Inbox className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <h3 className="text-sm font-bold text-slate-800">No pending proposals</h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                          When another member proposes a swap with you, it will appear here.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {pendingIncoming.map((req) => (
+                          <div
+                            key={req._id}
+                            className="p-5 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
+                          >
+                            <div className="flex items-start gap-4">
+                              <img
+                                src={
+                                  req.fromUser?.avatar ||
+                                  `https://api.dicebear.com/7.x/initials/svg?seed=${req.fromUser?.name || "User"}`
+                                }
+                                alt={req.fromUser?.name}
+                                className="w-12 h-12 rounded-2xl object-cover border border-slate-200 flex-shrink-0"
+                              />
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Link
+                                    to={`/profile/${req.fromUser?._id}`}
+                                    className="text-sm font-bold text-slate-900 hover:underline"
+                                  >
+                                    {req.fromUser?.name}
+                                  </Link>
+                                  {req.fromUser?.ratingAverage > 0 && (
+                                    <div className="flex items-center gap-1 text-[11px] text-amber-600 font-bold">
+                                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                      <span>{req.fromUser.ratingAverage.toFixed(1)}</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <p className="text-xs text-slate-700 mb-2">
+                                  Wants to learn your{" "}
+                                  <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
+                                    {req.requestedSkill}
+                                  </span>{" "}
+                                  in exchange for teaching you{" "}
+                                  <span className="font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md">
+                                    {req.offeredSkill}
+                                  </span>
+                                </p>
+
+                                {req.message && (
+                                  <p className="text-xs text-slate-500 bg-white p-3 rounded-xl border border-slate-200/80 italic">
+                                    "{req.message}"
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
+                              <button
+                                onClick={() => handleRespond(req._id, "declined")}
+                                disabled={actionLoading}
+                                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition"
+                              >
+                                Decline
+                              </button>
+                              <button
+                                onClick={() => handleRespond(req._id, "accepted")}
+                                disabled={actionLoading}
+                                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-100 transition"
+                              >
+                                Accept & Swap
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 3: SENT PROPOSALS */}
+                {activeTab === "sent" && (
+                  <div>
+                    {sentRequests.length === 0 ? (
+                      <div className="py-12 text-center">
+                        <Send className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <h3 className="text-sm font-bold text-slate-800">You haven't sent any proposals yet</h3>
+                        <p className="text-xs text-slate-500 mt-1 mb-4">
+                          Browse the marketplace to find people to swap skills with!
+                        </p>
+                        <Link
+                          to="/explore"
+                          className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition"
+                        >
+                          Explore Skills
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {sentRequests.map((req) => (
+                          <div
+                            key={req._id}
+                            className="p-5 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
+                          >
+                            <div className="flex items-start gap-4">
+                              <img
+                                src={
+                                  req.toUser?.avatar ||
+                                  `https://api.dicebear.com/7.x/initials/svg?seed=${req.toUser?.name || "User"}`
+                                }
+                                alt={req.toUser?.name}
+                                className="w-12 h-12 rounded-2xl object-cover border border-slate-200 flex-shrink-0"
+                              />
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-xs font-medium text-slate-500">Proposal sent to:</span>
+                                  <Link
+                                    to={`/profile/${req.toUser?._id}`}
+                                    className="text-sm font-bold text-slate-900 hover:underline"
+                                  >
+                                    {req.toUser?.name}
+                                  </Link>
+                                </div>
+
+                                <p className="text-xs text-slate-700 mb-2">
+                                  Offered:{" "}
+                                  <span className="font-bold text-purple-700">{req.offeredSkill}</span> ➔
+                                  Requested:{" "}
+                                  <span className="font-bold text-indigo-700">{req.requestedSkill}</span>
+                                </p>
+
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                      req.status === "pending"
+                                        ? "bg-amber-100 text-amber-700"
+                                        : req.status === "accepted"
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : req.status === "completed"
+                                        ? "bg-indigo-100 text-indigo-700"
+                                        : "bg-rose-100 text-rose-700"
+                                    }`}
+                                  >
+                                    {req.status}
+                                  </span>
+                                  <span className="text-[11px] text-slate-400">
+                                    {new Date(req.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {req.status === "pending" && (
+                              <button
+                                onClick={() => handleCancel(req._id)}
+                                disabled={actionLoading}
+                                className="px-4 py-2 rounded-xl text-xs font-bold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 transition"
+                              >
+                                Cancel Proposal
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 4: COMPLETED HISTORY */}
+                {activeTab === "completed" && (
+                  <div>
+                    {completedSwaps.length === 0 ? (
+                      <div className="py-12 text-center">
+                        <CheckCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <h3 className="text-sm font-bold text-slate-800">No completed swaps yet</h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                          When you finish a swap and mark it completed, it will be catalogued here.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {completedSwaps.map((swap) => {
+                          const partner =
+                            swap.fromUser?._id === user?._id ? swap.toUser : swap.fromUser;
+                          const hasReviewed =
+                            swap.fromUser?._id === user?._id
+                              ? swap.hasReviewFromUser
+                              : swap.hasReviewToUser;
+
+                          return (
+                            <div
+                              key={swap._id}
+                              className="p-5 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
+                            >
+                              <div className="flex items-start gap-4">
+                                <img
+                                  src={
+                                    partner?.avatar ||
+                                    `https://api.dicebear.com/7.x/initials/svg?seed=${partner?.name || "User"}`
+                                  }
+                                  alt={partner?.name}
+                                  className="w-12 h-12 rounded-2xl object-cover border border-slate-200 flex-shrink-0"
+                                />
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="text-sm font-bold text-slate-900">{partner?.name}</h4>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                                      Completed
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-600">
+                                    Swapped {swap.offeredSkill} ↔ {swap.requestedSkill}
+                                  </p>
+                                  <p className="text-[11px] text-slate-400 mt-1">
+                                    Completed on {new Date(swap.completedAt || swap.updatedAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div>
+                                {hasReviewed ? (
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">
+                                    <Check className="w-3.5 h-3.5" /> Reviewed
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedSwap(swap);
+                                      setReviewModalOpen(true);
+                                    }}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 shadow-sm transition"
+                                  >
+                                    <Star className="w-3.5 h-3.5 fill-white" />
+                                    <span>Leave Review</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Session Notes Modal */}
+      <SessionNotesModal
+        isOpen={notesModalOpen}
+        onClose={() => setNotesModalOpen(false)}
+        swapRequest={selectedSwap}
+        onSuccess={() => {
+          showToast("Session details updated successfully.");
+          fetchAllRequests();
+        }}
+      />
+
+      {/* Review Modal */}
+      <ReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        swapRequest={selectedSwap}
+        onSuccess={() => {
+          showToast("Thank you! Review published successfully.");
+          fetchAllRequests();
+          refreshUser();
+        }}
+      />
     </div>
   );
 };
