@@ -29,4 +29,10 @@ const SkillSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// High-performance compound & text indexes
+SkillSchema.index({ title: "text", description: "text", tags: "text" });
+SkillSchema.index({ category: 1, level: 1 });
+SkillSchema.index({ userId: 1 });
+SkillSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("Skill", SkillSchema);

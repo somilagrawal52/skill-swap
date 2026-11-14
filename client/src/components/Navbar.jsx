@@ -157,6 +157,12 @@ const Navbar = () => {
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
               <>
+                {/* Skill Credits Badge */}
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800 shadow-sm" title="Skill Credits: Earn credits by teaching, spend credits with any mentor!">
+                  <span>🪙</span>
+                  <span>{user?.credits ?? 3} Credits</span>
+                </div>
+
                 {/* Notification Dropdown */}
                 <div className="relative" ref={notifRef}>
                   <button

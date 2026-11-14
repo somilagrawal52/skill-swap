@@ -3,6 +3,8 @@ const User = require("../Models/user");
 const Skill = require("../Models/skill");
 const Review = require("../Models/review");
 
+const escapeRegex = (str) => (str ? str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : "");
+
 // Get all users (community directory)
 router.get("/", async (req, res) => {
   try {
@@ -10,7 +12,8 @@ router.get("/", async (req, res) => {
     const filter = {};
 
     if (q?.trim()) {
-      const regex = new RegExp(q.trim(), "i");
+      const escaped = escapeRegex(q.trim());
+      const regex = new RegExp(escaped, "i");
       filter.$or = [
         { name: { $regex: regex } },
         { headline: { $regex: regex } },
@@ -21,7 +24,8 @@ router.get("/", async (req, res) => {
     }
 
     if (skill?.trim()) {
-      filter.skillsOffered = { $regex: new RegExp(skill.trim(), "i") };
+      const escapedSkill = escapeRegex(skill.trim());
+      filter.skillsOffered = { $regex: new RegExp(escapedSkill, "i") };
     }
 
     const users = await User.find(filter)

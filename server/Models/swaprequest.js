@@ -6,6 +6,11 @@ const SwapRequestSchema = new mongoose.Schema(
     toUser: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     offeredSkill: { type: String, required: true, trim: true },
     requestedSkill: { type: String, required: true, trim: true },
+    exchangeType: {
+      type: String,
+      enum: ["direct_barter", "credit_exchange"],
+      default: "direct_barter",
+    },
     message: { type: String, default: "", trim: true },
     sessionNotes: { type: String, default: "", trim: true },
     meetingLink: { type: String, default: "", trim: true },
@@ -21,5 +26,10 @@ const SwapRequestSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// High-performance compound indexes
+SwapRequestSchema.index({ toUser: 1, status: 1 });
+SwapRequestSchema.index({ fromUser: 1, status: 1 });
+SwapRequestSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model("SwapRequest", SwapRequestSchema);

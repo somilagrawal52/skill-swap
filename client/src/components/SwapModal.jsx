@@ -46,7 +46,14 @@ const SwapModal = ({ isOpen, onClose, targetUser, targetSkillTitle, onSuccess })
 
     try {
       setLoading(true);
-      await sendSwapRequest(targetUser._id, skillToOffer, targetSkillTitle, message);
+      const isCreditExchange = skillToOffer.includes("Credit");
+      await sendSwapRequest(
+        targetUser._id,
+        skillToOffer,
+        targetSkillTitle,
+        message,
+        isCreditExchange ? "credit_exchange" : "direct_barter"
+      );
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
@@ -115,12 +122,15 @@ const SwapModal = ({ isOpen, onClose, targetUser, targetSkillTitle, onSuccess })
                     onChange={(e) => setOfferedSkill(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
+                    <option value="🪙 1 Skill Credit">
+                      🪙 Spend 1 Skill Credit (Balance: {user?.credits ?? 3} credits)
+                    </option>
                     {mySkills.map((s) => (
                       <option key={s._id} value={s.title}>
-                        {s.title} ({s.level || "Intermediate"})
+                        Teach: {s.title} ({s.level || "Intermediate"})
                       </option>
                     ))}
-                    <option value="custom">+ Offer a different skill...</option>
+                    <option value="custom">+ Offer a custom skill...</option>
                   </select>
 
                   {offeredSkill === "custom" && (

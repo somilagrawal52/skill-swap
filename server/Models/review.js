@@ -32,4 +32,8 @@ const ReviewSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Prevent duplicate reviews per swap & speed up profile review lookups
+ReviewSchema.index({ swapRequest: 1, reviewer: 1 }, { unique: true });
+ReviewSchema.index({ reviewee: 1, createdAt: -1 });
+
 module.exports = mongoose.model("Review", ReviewSchema);

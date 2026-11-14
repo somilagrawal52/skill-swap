@@ -5,7 +5,7 @@ const Notification = require("../Models/notification");
 // Send a swap request
 exports.sendRequest = async (req, res) => {
   try {
-    const { toUser, offeredSkill, requestedSkill, message } = req.body;
+    const { toUser, offeredSkill, requestedSkill, message, exchangeType } = req.body;
     if (!toUser || !offeredSkill?.trim() || !requestedSkill?.trim()) {
       return res.status(400).json({ msg: "Recipient and both skills are required" });
     }
@@ -16,6 +16,17 @@ exports.sendRequest = async (req, res) => {
     const recipient = await User.findById(toUser);
     if (!recipient) {
       return res.status(404).json({ msg: "Recipient not found" });
+    }
+
+    const sender = await User.findById(req.user.id);
+    if (!sender) {
+      return res.status(404).json({ msg: "Sender profile not found" });
+    }
+
+    if (exchangeType === "credit_exchange" && (sender.credits || 0) < 1) {
+      return res.status(400).json({
+        msg: "Insufficient Skill Credits. You need at least 1 credit to propose a credit exchange.",
+      });
     }
 
     // Check for existing pending request with same skills
@@ -36,12 +47,12 @@ exports.sendRequest = async (req, res) => {
       toUser,
       offeredSkill: offeredSkill.trim(),
       requestedSkill: requestedSkill.trim(),
+      exchangeType: exchangeType || "direct_barter",
       message: message?.trim() || "",
     });
     await swap.save();
 
     // Create Notification for recipient
-    const sender = await User.findById(req.user.id).select("name");
     await Notification.create({
       userId: toUser,
       senderId: req.user.id,
@@ -175,9 +186,16 @@ exports.completeSwap = async (req, res) => {
     request.completedAt = new Date();
     await request.save();
 
-    // Increment completedSwapsCount for both users
-    await User.findByIdAndUpdate(request.fromUser, { $inc: { completedSwapsCount: 1 } });
-    await User.findByIdAndUpdate(request.toUser, { $inc: { completedSwapsCount: 1 } });
+    // Credit & Completion Accounting
+    if (request.exchangeType === "credit_exchange") {
+      // Learner spends 1 credit, Teacher earns 1 credit
+      await User.findByIdAndUpdate(request.fromUser, { $inc: { completedSwapsCount: 1, credits: -1 } });
+      await User.findByIdAndUpdate(request.toUser, { $inc: { completedSwapsCount: 1, credits: 1 } });
+    } else {
+      // Direct bilateral barter: award +1 bonus credit to both for successful exchange
+      await User.findByIdAndUpdate(request.fromUser, { $inc: { completedSwapsCount: 1, credits: 1 } });
+      await User.findByIdAndUpdate(request.toUser, { $inc: { completedSwapsCount: 1, credits: 1 } });
+    }
 
     // Notify the other partner
     const otherUserId = request.fromUser.toString() === req.user.id ? request.toUser : request.fromUser;

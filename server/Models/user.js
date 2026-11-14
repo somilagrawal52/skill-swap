@@ -19,14 +19,23 @@ const UserSchema = new mongoose.Schema(
     },
     skillsOffered: [{ type: String, trim: true }],
     skillsNeeded: [{ type: String, trim: true }],
-    ratingAverage: { type: Number, default: 0, min: 0, max: 5 },
+    ratingAverage: { type: Number, default: 5.0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0 },
     completedSwapsCount: { type: Number, default: 0 },
+    // Commercialization & Economics: Asynchronous Karma / SkillCoin Credit Bank
+    credits: { type: Number, default: 3, min: 0 },
+    isProMember: { type: Boolean, default: false },
+    badges: [{ type: String }],
   },
   {
     timestamps: true,
   }
 );
+
+// Indexes for high-throughput queries
+UserSchema.index({ ratingAverage: -1, completedSwapsCount: -1 });
+UserSchema.index({ skillsOffered: 1 });
+UserSchema.index({ skillsNeeded: 1 });
 
 // Never expose password hash in JSON output
 UserSchema.set("toJSON", {

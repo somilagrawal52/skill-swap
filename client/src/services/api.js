@@ -31,8 +31,8 @@ export const searchUsersBySkill = (query) => API.get("/skills/search", { params:
 export const getSmartMatches = () => API.get("/skills/matches");
 
 // ================= SWAP REQUESTS =================
-export const sendSwapRequest = (toUser, offeredSkill, requestedSkill, message = "") =>
-  API.post("/requests/send", { toUser, offeredSkill, requestedSkill, message });
+export const sendSwapRequest = (toUser, offeredSkill, requestedSkill, message = "", exchangeType = "direct_barter") =>
+  API.post("/requests/send", { toUser, offeredSkill, requestedSkill, message, exchangeType });
 
 export const getMyRequests = () => API.get("/requests/incoming");
 export const getIncomingRequests = () => API.get("/requests/incoming");

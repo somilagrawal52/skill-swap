@@ -1,6 +1,9 @@
 const Skill = require("../Models/skill");
 const User = require("../Models/user");
 
+// Safely escape user input for RegExp to prevent regex injection and syntax errors
+const escapeRegex = (str) => (str ? str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : "");
+
 // Create a new skill
 exports.createSkill = async (req, res) => {
   try {
@@ -134,7 +137,8 @@ exports.getAllSkills = async (req, res) => {
     }
 
     if (q?.trim()) {
-      const regex = new RegExp(q.trim(), "i");
+      const escaped = escapeRegex(q.trim());
+      const regex = new RegExp(escaped, "i");
       filter.$or = [
         { title: { $regex: regex } },
         { description: { $regex: regex } },
@@ -176,10 +180,13 @@ exports.searchUsersBySkill = async (req, res) => {
     const query = req.query.q?.trim();
     if (!query) return res.status(400).json({ msg: "A search query is required" });
 
+    const escaped = escapeRegex(query);
+    const regex = new RegExp(escaped, "i");
+
     const skills = await Skill.find({
       $or: [
-        { title: { $regex: query, $options: "i" } },
-        { tags: { $regex: query, $options: "i" } },
+        { title: { $regex: regex } },
+        { tags: { $in: [regex] } },
       ],
     })
       .populate("userId", "name email avatar headline ratingAverage ratingCount skillsNeeded")
