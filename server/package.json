@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node tests/api.test.js && node tests/swaps.test.js",
-    "start": "nodemon app.js"
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "node tests/api.test.js && node tests/swaps.test.js"
   },
   "author": "",
   "license": "ISC",

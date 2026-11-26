@@ -173,3 +173,44 @@ Visit `http://localhost:5173` to explore the platform.
 | **David Chen** | Growth Marketer (SEO, Content Strategy) | `david@skillswap.io` |
 | **Chloe Martin** | Acoustic Guitarist & Songwriter | `chloe@skillswap.io` |
 | **Aarav Patel** | Data Scientist (Python, pandas, ML) | `aarav@skillswap.io` |
+
+---
+
+## 🌐 Production Hosting & Deployment Guide
+
+SkillSwap is 100% production-ready across all major cloud providers and PaaS platforms.
+
+### 🚀 Path 1: 1-Click All-in-One Deployment on Render.com (Recommended Free Tier)
+Deploy both the Frontend and Backend together as a single unified service (saving costs and avoiding CORS issues):
+1. Create a free account at [Render.com](https://render.com).
+2. Click **New +** ➔ **Blueprint** and connect your GitHub repository (`somilagrawal52/skill-swap`).
+3. Render automatically detects [`render.yaml`](./render.yaml):
+   - **Build Command**: `npm run install:all && npm run build:client`
+   - **Start Command**: `npm start`
+4. Set your **`MONGO_URI`** (e.g. from your free MongoDB Atlas cluster).
+5. Click **Apply**! Your app will be live with SSL at `https://your-app.onrender.com`.
+
+### ⚡ Path 2: Split Hosting (Vercel Frontend + Render/Railway API)
+Host the frontend on Vercel's global CDN and the backend on Render or Railway:
+1. **Backend (Render or Railway)**:
+   - Root Directory: `server`
+   - Build Command: `npm install`
+   - Start Command: `node app.js`
+   - Environment Variables:
+     - `MONGO_URI`: `mongodb+srv://...` (from MongoDB Atlas)
+     - `JWT_SECRET`: A secure 32+ character random string
+     - `NODE_ENV`: `production`
+     - `ALLOWED_ORIGINS`: `https://your-frontend.vercel.app`
+2. **Frontend (Vercel)**:
+   - Root Directory: `client`
+   - Framework Preset: `Vite`
+   - Environment Variable:
+     - `VITE_API_URL`: `https://your-backend.onrender.com/api`
+   - *(Note: [`client/vercel.json`](./client/vercel.json) is already included to prevent 404s on page refresh)*
+
+### 🐳 Path 3: Self-Hosted Docker Deployment (Any Linux VPS / AWS EC2 / DigitalOcean)
+Run MongoDB, the Node.js API, and Nginx web server with one command:
+```bash
+docker-compose up -d --build
+```
+Your platform will immediately be accessible on port 80.

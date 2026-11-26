@@ -1,4 +1,5 @@
 require("dotenv").config();
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -79,6 +80,21 @@ app.get("/api/health", (req, res) => {
     environment: process.env.NODE_ENV || "development",
   });
 });
+
+// Serve frontend client/dist if built in production (unified hosting)
+if (process.env.NODE_ENV === "production") {
+  const clientDistPath = path.join(__dirname, "../client/dist");
+  app.use(express.static(clientDistPath));
+
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api/")) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, "index.html"), (err) => {
+      if (err) next();
+    });
+  });
+}
 
 // Centralized error handling
 app.use(errorHandler);
