@@ -245,8 +245,31 @@ async function seed() {
       somil.headline = "Software Developer & Skill-Swap Creator";
       somil.bio = "Building community-driven software. Eager to swap coding mentorship for design and marketing expertise!";
       somil.avatar = somil.avatar || "https://api.dicebear.com/7.x/initials/svg?seed=Somil";
+      somil.role = "admin";
       await somil.save();
-      console.log("Updated Somil's profile with offered and needed skills.");
+      console.log("Updated Somil's profile with offered and needed skills + admin privileges.");
+    }
+
+    // Seed or update master Administrator account
+    let adminUser = await User.findOne({ email: "admin@skillswap.io" });
+    if (!adminUser) {
+      const hashedAdminPass = await bcrypt.hash("admin123", 10);
+      adminUser = new User({
+        name: "SkillSwap Administrator",
+        email: "admin@skillswap.io",
+        password: hashedAdminPass,
+        role: "admin",
+        headline: "Platform Administrator & Operations Lead",
+        bio: "Managing platform liquidity, trust & safety, and system health.",
+        avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Admin",
+        credits: 999,
+      });
+      await adminUser.save();
+      console.log("Created master Admin user: admin@skillswap.io / admin123");
+    } else {
+      adminUser.role = "admin";
+      await adminUser.save();
+      console.log("Ensured admin role on admin@skillswap.io");
     }
 
     // Seed or update sample users

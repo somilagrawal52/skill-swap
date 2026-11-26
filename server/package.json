@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "test": "node tests/api.test.js && node tests/swaps.test.js"
+    "test": "node tests/api.test.js && node tests/swaps.test.js && node tests/admin.test.js"
   },
   "author": "",
   "license": "ISC",

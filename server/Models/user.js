@@ -26,6 +26,10 @@ const UserSchema = new mongoose.Schema(
     credits: { type: Number, default: 3, min: 0 },
     isProMember: { type: Boolean, default: false },
     badges: [{ type: String }],
+    // Administration & Moderation
+    role: { type: String, enum: ["user", "admin"], default: "user" },
+    isBanned: { type: Boolean, default: false },
+    banReason: { type: String, default: "" },
   },
   {
     timestamps: true,

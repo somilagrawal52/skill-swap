@@ -74,6 +74,7 @@ const skillRoutes = require("./routes/skills");
 const reviewRoutes = require("./routes/reviews");
 const notificationRoutes = require("./routes/notifications");
 const userRoutes = require("./routes/users");
+const adminRoutes = require("./routes/admin");
 
 // Register Endpoints
 app.use("/api/auth", authRoutes);
@@ -82,6 +83,7 @@ app.use("/api/requests", requestRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Production Health & Diagnostic Check
 app.get("/api/health", (req, res) => {

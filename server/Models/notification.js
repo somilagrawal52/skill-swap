@@ -21,6 +21,8 @@ const NotificationSchema = new mongoose.Schema(
         "swap_cancelled",
         "swap_completed",
         "review_received",
+        "credit_update",
+        "admin_notice",
       ],
       required: true,
     },

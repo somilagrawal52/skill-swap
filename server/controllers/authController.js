@@ -61,6 +61,12 @@ exports.login = async (req, res) => {
       return res.status(400).json({ msg: "Invalid credentials" });
     }
 
+    if (user.isBanned) {
+      return res.status(403).json({
+        msg: user.banReason || "Your account has been suspended by an administrator.",
+      });
+    }
+
     const token = generateToken(user._id);
     res.json({ token, user });
   } catch (err) {

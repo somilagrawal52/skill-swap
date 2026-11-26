@@ -19,6 +19,7 @@ import {
   CheckCheck,
   Star,
   Users,
+  Shield,
 } from "lucide-react";
 
 const Navbar = () => {
@@ -106,6 +107,9 @@ const Navbar = () => {
       ? [
           { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
           { name: "My Skills", path: "/skills", icon: Sparkles },
+          ...(user?.role === "admin"
+            ? [{ name: "Admin", path: "/admin", icon: Shield }]
+            : []),
         ]
       : []),
     { name: "Community", path: "/community", icon: Users },
@@ -270,6 +274,14 @@ const Navbar = () => {
                       </div>
 
                       <div className="py-1">
+                        {user?.role === "admin" && (
+                          <Link
+                            to="/admin"
+                            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 border-b border-slate-100"
+                          >
+                            <Shield className="w-4 h-4 text-indigo-600" /> Admin Command Center
+                          </Link>
+                        )}
                         <Link
                           to="/profile"
                           className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"

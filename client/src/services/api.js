@@ -69,3 +69,18 @@ export const markAllNotificationsRead = () => API.put("/notifications/read-all")
 
 // ================= USERS / COMMUNITY =================
 export const getCommunityUsers = (params = {}) => API.get("/users", { params });
+
+// ================= ADMIN MANAGEMENT =================
+export const getAdminMetrics = () => API.get("/admin/metrics");
+export const getAdminUsers = (params = {}) => API.get("/admin/users", { params });
+export const toggleAdminUserBan = (id, banReason) => API.patch(`/admin/users/${id}/ban`, { banReason });
+export const adjustAdminUserCredits = (id, amount, reason) => API.patch(`/admin/users/${id}/credits`, { amount, reason });
+export const toggleAdminUserRole = (id, role) => API.patch(`/admin/users/${id}/role`, { role });
+
+export const getAdminSkills = (params = {}) => API.get("/admin/skills", { params });
+export const toggleAdminSkillFeatured = (id) => API.patch(`/admin/skills/${id}/feature`);
+export const updateAdminSkillStatus = (id, status) => API.patch(`/admin/skills/${id}/status`, { status });
+export const deleteAdminSkill = (id) => API.delete(`/admin/skills/${id}`);
+
+export const getAdminSwaps = (params = {}) => API.get("/admin/swaps", { params });
+export const resolveAdminSwap = (id, resolution, notes) => API.post(`/admin/swaps/${id}/resolve`, { resolution, notes });

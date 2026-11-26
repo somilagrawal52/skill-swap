@@ -25,6 +25,12 @@ const SkillSchema = new mongoose.Schema(
     },
     tags: [{ type: String, trim: true }],
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    isFeatured: { type: Boolean, default: false },
+    status: {
+      type: String,
+      enum: ["active", "flagged", "archived"],
+      default: "active",
+    },
   },
   { timestamps: true }
 );
@@ -32,6 +38,7 @@ const SkillSchema = new mongoose.Schema(
 // High-performance compound & text indexes
 SkillSchema.index({ title: "text", description: "text", tags: "text" });
 SkillSchema.index({ category: 1, level: 1 });
+SkillSchema.index({ isFeatured: -1, status: 1 });
 SkillSchema.index({ userId: 1 });
 SkillSchema.index({ createdAt: -1 });
 
