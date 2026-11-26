@@ -16,19 +16,35 @@ connectDB();
 const app = express();
 
 // Security: Whitelist CORS origins in production
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-  : ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"];
+const rawAllowedOrigins = [
+  ...(process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+    : ["*"]),
+  process.env.RENDER_EXTERNAL_URL,
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, Postman)
-      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== "production") {
-        callback(null, true);
-      } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS policy`));
+      // 1. Allow non-browser requests (mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+
+      // 2. Wildcard or non-production environment allows all
+      if (rawAllowedOrigins.includes("*") || process.env.NODE_ENV !== "production") {
+        return callback(null, true);
       }
+
+      // 3. Match against allowed origins (stripping trailing slashes)
+      const cleanOrigin = origin.replace(/\/+$/, "");
+      const isAllowed = rawAllowedOrigins.some(
+        (allowed) => cleanOrigin === allowed.replace(/\/+$/, "")
+      );
+
+      // 4. Return boolean instead of throwing Error to prevent 500 error on static assets
+      callback(null, isAllowed);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
