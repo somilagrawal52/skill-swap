@@ -12,7 +12,8 @@
     "start": "node server/app.js",
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm run dev --prefix client",
-    "test": "npm test --prefix server"
+    "test": "npm test --prefix server",
+    "seed": "node server/utils/seed.js"
   },
   "keywords": [
     "mern",
