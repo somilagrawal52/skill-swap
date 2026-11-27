@@ -282,9 +282,11 @@ async function seed() {
         await existing.save();
         console.log(`Created user ${u.name}`);
       } else {
+        const hashedPassword = await bcrypt.hash(u.password, 10);
         Object.assign(existing, u);
+        existing.password = hashedPassword;
         await existing.save();
-        console.log(`Updated user ${u.name}`);
+        console.log(`Updated user ${u.name} (hashed password)`);
       }
       userMap.set(u.email, existing);
     }
