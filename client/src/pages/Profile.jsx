@@ -170,16 +170,25 @@ const Profile = () => {
                   <span>{isEditing ? "Close Editor" : "Edit Profile"}</span>
                 </button>
               ) : (
-                <button
-                  onClick={() => {
-                    setSelectedSkillTitle(skills[0]?.title || "Skill Exchange");
-                    setSwapModalOpen(true);
-                  }}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-100 transition flex items-center gap-2 self-start sm:self-end"
-                >
-                  <ArrowRightLeft className="w-4 h-4" />
-                  <span>Propose Swap</span>
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-end">
+                  <Link
+                    to={`/messages?user=${profileData._id}`}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition flex items-center gap-1.5"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Send Message</span>
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setSelectedSkillTitle(skills[0]?.title || "Skill Exchange");
+                      setSwapModalOpen(true);
+                    }}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-100 transition flex items-center gap-2"
+                  >
+                    <ArrowRightLeft className="w-4 h-4" />
+                    <span>Propose Swap</span>
+                  </button>
+                </div>
               )}
             </div>
 

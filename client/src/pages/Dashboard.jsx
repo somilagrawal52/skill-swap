@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Sparkles,
   ExternalLink,
+  MessageSquare,
 } from "lucide-react";
 
 const Dashboard = () => {
@@ -346,6 +347,14 @@ const Dashboard = () => {
                               </div>
 
                               <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+                                <Link
+                                  to={`/messages?user=${partner?._id}&swap=${swap._id}`}
+                                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition flex items-center gap-1.5"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
+                                  <span>Chat with {partner?.name?.split(" ")[0]}</span>
+                                </Link>
+
                                 <button
                                   onClick={() => {
                                     setSelectedSwap(swap);
@@ -437,6 +446,14 @@ const Dashboard = () => {
                             </div>
 
                             <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
+                              <Link
+                                to={`/messages?user=${req.fromUser?._id}&swap=${req._id}`}
+                                className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition flex items-center gap-1.5"
+                                title="Message before deciding"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+                                <span>Message</span>
+                              </Link>
                               <button
                                 onClick={() => handleRespond(req._id, "declined")}
                                 disabled={actionLoading}
@@ -531,15 +548,24 @@ const Dashboard = () => {
                               </div>
                             </div>
 
-                            {req.status === "pending" && (
-                              <button
-                                onClick={() => handleCancel(req._id)}
-                                disabled={actionLoading}
-                                className="px-4 py-2 rounded-xl text-xs font-bold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 transition"
+                            <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
+                              <Link
+                                to={`/messages?user=${req.toUser?._id}&swap=${req._id}`}
+                                className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition flex items-center gap-1.5"
                               >
-                                Cancel Proposal
-                              </button>
-                            )}
+                                <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+                                <span>Message</span>
+                              </Link>
+                              {req.status === "pending" && (
+                                <button
+                                  onClick={() => handleCancel(req._id)}
+                                  disabled={actionLoading}
+                                  className="px-4 py-2 rounded-xl text-xs font-bold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 transition"
+                                >
+                                  Cancel Proposal
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

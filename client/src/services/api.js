@@ -67,6 +67,15 @@ export const getNotifications = () => API.get("/notifications");
 export const markNotificationRead = (id) => API.put(`/notifications/${id}/read`);
 export const markAllNotificationsRead = () => API.put("/notifications/read-all");
 
+// ================= MESSAGES & CHAT =================
+export const sendMessage = (recipientId, content, swapRequestId = null) =>
+  API.post("/messages/send", { recipientId, content, swapRequestId });
+export const getConversations = () => API.get("/messages/conversations");
+export const getMessagesWithUser = (userId) => API.get(`/messages/${userId}`);
+export const getMessagesBySwap = (swapId) => API.get(`/messages/swap/${swapId}`);
+export const markMessagesAsRead = (userId) => API.put(`/messages/read/${userId}`);
+export const getUnreadMessageCount = () => API.get("/messages/unread/count");
+
 // ================= USERS / COMMUNITY =================
 export const getCommunityUsers = (params = {}) => API.get("/users", { params });
 

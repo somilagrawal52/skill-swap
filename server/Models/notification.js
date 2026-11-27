@@ -23,6 +23,7 @@ const NotificationSchema = new mongoose.Schema(
         "review_received",
         "credit_update",
         "admin_notice",
+        "chat_message",
       ],
       required: true,
     },

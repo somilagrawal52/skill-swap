@@ -5,6 +5,7 @@ import {
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  getUnreadMessageCount,
 } from "../services/api";
 import {
   ArrowLeftRight,
@@ -20,6 +21,7 @@ import {
   Star,
   Users,
   Shield,
+  MessageSquare,
 } from "lucide-react";
 
 const Navbar = () => {
@@ -32,6 +34,7 @@ const Navbar = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const notifRef = useRef(null);
   const userRef = useRef(null);
@@ -57,21 +60,25 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch notifications periodically or on mount
-  const fetchNotifs = async () => {
+  // Fetch notifications and unread messages periodically or on mount
+  const fetchBadges = async () => {
     if (!isAuthenticated) return;
     try {
-      const { data } = await getNotifications();
-      setNotifications(data.notifications || []);
-      setUnreadCount(data.unreadCount || 0);
+      const [notifRes, msgRes] = await Promise.all([
+        getNotifications(),
+        getUnreadMessageCount(),
+      ]);
+      setNotifications(notifRes.data.notifications || []);
+      setUnreadCount(notifRes.data.unreadCount || 0);
+      setUnreadMessages(msgRes.data.unreadCount || 0);
     } catch (err) {
       // silently ignore
     }
   };
 
   useEffect(() => {
-    fetchNotifs();
-    const interval = setInterval(fetchNotifs, 30000); // poll every 30s
+    fetchBadges();
+    const interval = setInterval(fetchBadges, 10000); // poll every 10s
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
@@ -106,6 +113,7 @@ const Navbar = () => {
     ...(isAuthenticated
       ? [
           { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+          { name: "Messages", path: "/messages", icon: MessageSquare, badge: unreadMessages },
           { name: "My Skills", path: "/skills", icon: Sparkles },
           ...(user?.role === "admin"
             ? [{ name: "Admin", path: "/admin", icon: Shield }]
@@ -151,7 +159,12 @@ const Navbar = () => {
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  {link.name}
+                  <span>{link.name}</span>
+                  {link.badge > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-600 text-white animate-pulse">
+                      {link.badge > 9 ? "9+" : link.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -295,6 +308,19 @@ const Navbar = () => {
                           <LayoutDashboard className="w-4 h-4 text-slate-400" /> Dashboard & Swaps
                         </Link>
                         <Link
+                          to="/messages"
+                          className="flex items-center justify-between px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4 text-slate-400" /> Messages
+                          </div>
+                          {unreadMessages > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-600 text-white">
+                              {unreadMessages}
+                            </span>
+                          )}
+                        </Link>
+                        <Link
                           to="/skills"
                           className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
                         >
@@ -352,14 +378,21 @@ const Navbar = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition ${
+                className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold transition ${
                   isActive(link.path)
                     ? "text-indigo-600 bg-indigo-50"
                     : "text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                {link.name}
+                <div className="flex items-center gap-3">
+                  <Icon className="w-5 h-5" />
+                  <span>{link.name}</span>
+                </div>
+                {link.badge > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-600 text-white">
+                    {link.badge > 9 ? "9+" : link.badge}
+                  </span>
+                )}
               </Link>
             );
           })}

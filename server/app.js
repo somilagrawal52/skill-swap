@@ -75,6 +75,7 @@ const reviewRoutes = require("./routes/reviews");
 const notificationRoutes = require("./routes/notifications");
 const userRoutes = require("./routes/users");
 const adminRoutes = require("./routes/admin");
+const messageRoutes = require("./routes/messages");
 
 // Register Endpoints
 app.use("/api/auth", authRoutes);
@@ -84,6 +85,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/messages", messageRoutes);
 
 // Production Health & Diagnostic Check
 app.get("/api/health", (req, res) => {
